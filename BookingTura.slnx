@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BookingTura.API/BookingTura.API.csproj" />
+    <Project Path="src/BookingTura.Application/BookingTura.Application.csproj" />
+    <Project Path="src/BookingTura.Domain/BookingTura.Domain.csproj" />
+    <Project Path="src/BookingTura.Infrastructure/BookingTura.Infrastructure.csproj" />
+  </Folder>
+</Solution>
