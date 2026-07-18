@@ -14,22 +14,24 @@ var auth0Audience = builder.Configuration["Auth0:Audience"];
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        options.Authority = "https://dev-xkmh41n67u01oflw.us.auth0.com/";
+        options.Authority = $"https://{auth0Domain}";
         options.Audience = auth0Audience;
     });
 
 builder.Services.AddAuthorization();
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend",
-        policy =>
-        {
-            policy.WithOrigins("http://localhost:5173")
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
-        });
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy
+            .WithOrigins(
+                "http://localhost:5173",
+                "https://tura-bw0ollhcm-daniel-cpu818s-projects.vercel.app"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
 });
-
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
