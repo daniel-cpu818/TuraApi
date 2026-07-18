@@ -26,10 +26,11 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins(
                 "http://localhost:5173",
-                "https://tura-bw0ollhcm-daniel-cpu818s-projects.vercel.app"
+                "https://tura-app-l4tt.vercel.app"
             )
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 var app = builder.Build();
@@ -49,6 +50,7 @@ using (var scope = app.Services.CreateScope())
 app.UseCors("AllowFrontend");
 app.UseStaticFiles();
 app.UseAuthentication();
+app.UseRouting();
 app.UseAuthorization();
 app.MapControllers();
 
