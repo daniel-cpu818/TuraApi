@@ -11,6 +11,9 @@ public class CloudinaryService : ICloudinaryService
 
     public CloudinaryService(IConfiguration configuration)
     {
+    Console.WriteLine("CloudName: " + configuration["Cloudinary:CloudName"]);
+    Console.WriteLine("ApiKey: " + configuration["Cloudinary:ApiKey"]);
+    Console.WriteLine("ApiSecret: " + configuration["Cloudinary:ApiSecret"]);
         var account = new Account(
             configuration["Cloudinary:CloudName"],
             configuration["Cloudinary:ApiKey"],
