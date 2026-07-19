@@ -32,6 +32,7 @@ public static class InfrastructureServiceRegistration
         services.AddScoped<IPropertyTypeService, PropertyTypeService>();
         services.AddScoped<ILocationService, LocationService>();
 
+services.AddSingleton<ICloudinaryService, CloudinaryService>();
         return services;
     }
 }

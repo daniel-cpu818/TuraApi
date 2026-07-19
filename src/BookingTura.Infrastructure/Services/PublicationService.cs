@@ -24,15 +24,18 @@ public class PublicationService : IPublicationService
     private readonly BookingTuraDbContext _context;
     private readonly ICurrentUserService _currentUser;
     private readonly IGeocodingService _geocodingService;
+    private readonly ICloudinaryService _cloudinaryService;
 
     public PublicationService(
         BookingTuraDbContext context,
         ICurrentUserService currentUser,
-        IGeocodingService geocodingService)
+        IGeocodingService geocodingService,
+        ICloudinaryService cloudinaryService)
     {
         _context = context;
         _currentUser = currentUser;
         _geocodingService = geocodingService;
+        _cloudinaryService = cloudinaryService;
     }
 
     public async Task<PublicationResponseDto> DeleteAsync(Guid id)
@@ -58,7 +61,7 @@ public class PublicationService : IPublicationService
             .Where(url => !string.IsNullOrWhiteSpace(url))
             .ToList();
 
-        DeleteFiles(imageUrls);
+        // DeleteFiles(imageUrls);
 
         return MapToDto(
             publication,
@@ -193,7 +196,7 @@ public class PublicationService : IPublicationService
         catch
         {
             await transaction.RollbackAsync();
-            DeleteFiles(savedImageUrls);
+            // DeleteFiles(savedImageUrls);
             throw;
         }
 
@@ -512,76 +515,70 @@ public class PublicationService : IPublicationService
         }
     }
 
-    private static async Task<List<PropertyImage>> CreatePropertyImagesAsync(
-        Property property,
-        IReadOnlyCollection<IFileUpload> uploads)
+    private async Task<List<PropertyImage>> CreatePropertyImagesAsync(
+    Property property,
+    IReadOnlyCollection<IFileUpload> uploads)
+{
+    if (uploads.Count == 0)
+        return [];
+
+    var createdImages = new List<PropertyImage>();
+
+    var index = 0;
+
+    foreach (var upload in uploads)
     {
-        if (uploads.Count == 0)
-            return [];
+        using var stream = upload.OpenReadStream();
 
-        var uploadDirectory = GetUploadDirectory();
-        Directory.CreateDirectory(uploadDirectory);
+        var imageUrl = await _cloudinaryService.UploadImageAsync(
+            stream,
+            upload.FileName);
 
-        var createdImages = new List<PropertyImage>(uploads.Count);
-        var index = 0;
-
-        foreach (var upload in uploads)
+        createdImages.Add(new PropertyImage
         {
-            var extension = Path.GetExtension(upload.FileName);
-            var fileName = $"{property.Id:N}-{Guid.NewGuid():N}{extension}";
-            var filePath = Path.Combine(uploadDirectory, fileName);
+            Id = Guid.NewGuid(),
+            PropertyId = property.Id,
+            Property = property,
+            Url = imageUrl,
+            IsMain = index == 0,
+            CreatedAt = DateTime.UtcNow
+        });
 
-            await using (var sourceStream = upload.OpenReadStream())
-            await using (var targetStream = new FileStream(filePath, FileMode.Create))
-            {
-                await sourceStream.CopyToAsync(targetStream);
-            }
-
-            createdImages.Add(new PropertyImage
-            {
-                Id = Guid.NewGuid(),
-                PropertyId = property.Id,
-                Property = property,
-                Url = $"/uploads/properties/{fileName}",
-                IsMain = index == 0,
-                CreatedAt = DateTime.UtcNow
-            });
-
-            index++;
-        }
-
-        return createdImages;
+        index++;
     }
 
-    private static string GetUploadDirectory()
-    {
-        return Path.Combine(
-            Directory.GetCurrentDirectory(),
-            "wwwroot",
-            "uploads",
-            "properties");
-    }
+    return createdImages;
+}
 
-    private static void DeleteFiles(IEnumerable<string> imageUrls)
-    {
-        foreach (var imageUrl in imageUrls)
-        {
-            var relativePath = imageUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
-            var fullPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", relativePath);
+    // private static string GetUploadDirectory()
+    // {
+    //     return Path.Combine(
+    //         Directory.GetCurrentDirectory(),
+    //         "wwwroot",
+    //         "uploads",
+    //         "properties");
+    // }
 
-            try
-            {
-                if (File.Exists(fullPath))
-                    File.Delete(fullPath);
-            }
-            catch (IOException)
-            {
-            }
-            catch (UnauthorizedAccessException)
-            {
-            }
-        }
-    }
+    // private static void DeleteFiles(IEnumerable<string> imageUrls)
+    // {
+    //     foreach (var imageUrl in imageUrls)
+    //     {
+    //         var relativePath = imageUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+    //         var fullPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", relativePath);
+
+    //         try
+    //         {
+    //             if (File.Exists(fullPath))
+    //                 File.Delete(fullPath);
+    //         }
+    //         catch (IOException)
+    //         {
+    //         }
+    //         catch (UnauthorizedAccessException)
+    //         {
+    //         }
+    //     }
+    // }
 
     private static PublicationResponseDto MapToDto(
         Publication publication,
