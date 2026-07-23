@@ -76,7 +76,7 @@ public class GeocodingService : IGeocodingService
         var cleanCommune = Normalize(commune);
 
         AddCandidate(cleanAddress, IsUsefulText(cleanCommune) ? cleanCommune : null, "Colombia");
-        AddCandidate(cleanAddress, "Colombia");
+        AddCandidate(cleanAddress, "Colombia, Valle del Cauca, Buenaventura");
         AddCandidate(cleanAddress, IsUsefulText(cleanHood) ? cleanHood : null, "Colombia");
         AddCandidate(cleanAddress);
 
