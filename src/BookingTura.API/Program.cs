@@ -2,6 +2,8 @@ using BookingTura.Infrastructure.Data;
 using BookingTura.Infrastructure.DependencyInjection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using BookingTura.Application.Interfaces;
+using BookingTura.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpContextAccessor();
@@ -32,6 +34,11 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod()
             .AllowCredentials();
     });
+});
+builder.Services.AddHttpClient<IGeocodingService, GeocodingService>(client =>
+{
+    client.BaseAddress = new Uri("https://nominatim.openstreetmap.org/");
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("TuraHogar/1.0, danieljassan233@gmail.com");
 });
 var app = builder.Build();
 

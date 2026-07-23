@@ -23,11 +23,12 @@ public class GeocodingService : IGeocodingService
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(address))
-            throw new ArgumentException("La direccion es obligatoria.", nameof(address));
+            throw new ArgumentException("La dirección es obligatoria.", nameof(address));
 
         foreach (var query in BuildQueryCandidates(address, commune, hood))
         {
             var result = await SearchAsync(query, cancellationToken);
+
             if (result != null)
                 return result;
         }
@@ -35,19 +36,34 @@ public class GeocodingService : IGeocodingService
         return null;
     }
 
-    private async Task<GeocodingResultDto?> SearchAsync(string query, CancellationToken cancellationToken)
+    private async Task<GeocodingResultDto?> SearchAsync(
+        string query,
+        CancellationToken cancellationToken)
     {
-        var requestUri = $"search?format=jsonv2&limit=1&countrycodes=co&q={Uri.EscapeDataString(query)}";
+        // Bounding Box aproximado de Buenaventura
+        const string viewBox = "-77.25,3.98,-76.75,3.45";
+
+        var requestUri =
+            $"search?format=jsonv2" +
+            $"&limit=1" +
+            $"&countrycodes=co" +
+            $"&bounded=1" +
+            $"&viewbox={viewBox}" +
+            $"&q={Uri.EscapeDataString(query)}";
 
         using var response = await _httpClient.GetAsync(requestUri, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        await using var contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        var results = await JsonSerializer.DeserializeAsync<List<NominatimSearchResult>>(
-            contentStream,
-            cancellationToken: cancellationToken);
+        await using var contentStream =
+            await response.Content.ReadAsStreamAsync(cancellationToken);
+
+        var results =
+            await JsonSerializer.DeserializeAsync<List<NominatimSearchResult>>(
+                contentStream,
+                cancellationToken: cancellationToken);
 
         var firstResult = results?.FirstOrDefault();
+
         if (firstResult == null)
             return null;
 
@@ -55,6 +71,10 @@ public class GeocodingService : IGeocodingService
             return null;
 
         if (!TryParseCoordinate(firstResult.Lon, out var longitude))
+            return null;
+
+        // Verifica que las coordenadas pertenezcan a Buenaventura
+        if (!IsInsideBuenaventura(latitude, longitude))
             return null;
 
         return new GeocodingResultDto
@@ -72,13 +92,28 @@ public class GeocodingService : IGeocodingService
         var candidates = new List<string>();
 
         var cleanAddress = Normalize(address);
-        var cleanHood = Normalize(hood);
         var cleanCommune = Normalize(commune);
+        var cleanHood = Normalize(hood);
 
-        AddCandidate(cleanAddress, IsUsefulText(cleanCommune) ? cleanCommune : null, "Colombia");
-        AddCandidate(cleanAddress, "Colombia, Valle del Cauca, Buenaventura");
-        AddCandidate(cleanAddress, IsUsefulText(cleanHood) ? cleanHood : null, "Colombia");
-        AddCandidate(cleanAddress);
+        AddCandidate(
+            cleanAddress,
+            IsUsefulText(cleanCommune) ? cleanCommune : null,
+            "Buenaventura",
+            "Valle del Cauca",
+            "Colombia");
+
+        AddCandidate(
+            cleanAddress,
+            IsUsefulText(cleanHood) ? cleanHood : null,
+            "Buenaventura",
+            "Valle del Cauca",
+            "Colombia");
+
+        AddCandidate(
+            cleanAddress,
+            "Buenaventura",
+            "Valle del Cauca",
+            "Colombia");
 
         return candidates;
 
@@ -86,13 +121,31 @@ public class GeocodingService : IGeocodingService
         {
             var query = string.Join(", ",
                 parts
-                    .Where(part => !string.IsNullOrWhiteSpace(part))
-                    .Select(part => part!.Trim())
+                    .Where(p => !string.IsNullOrWhiteSpace(p))
+                    .Select(p => p!.Trim())
                     .Distinct(StringComparer.OrdinalIgnoreCase));
 
-            if (!string.IsNullOrWhiteSpace(query) && !candidates.Contains(query, StringComparer.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(query) &&
+                !candidates.Contains(query, StringComparer.OrdinalIgnoreCase))
+            {
                 candidates.Add(query);
+            }
         }
+    }
+
+    private static bool IsInsideBuenaventura(double latitude, double longitude)
+    {
+        // Límites aproximados de Buenaventura
+        const double minLat = 3.45;
+        const double maxLat = 3.98;
+
+        const double minLon = -77.25;
+        const double maxLon = -76.75;
+
+        return latitude >= minLat &&
+               latitude <= maxLat &&
+               longitude >= minLon &&
+               longitude <= maxLon;
     }
 
     private static string Normalize(string? value)
@@ -102,15 +155,14 @@ public class GeocodingService : IGeocodingService
 
         return string.Join(
             " ",
-            value
-                .Trim()
-                .Split(' ', StringSplitOptions.RemoveEmptyEntries));
+            value.Trim()
+                 .Split(' ', StringSplitOptions.RemoveEmptyEntries));
     }
 
     private static bool IsUsefulText(string value)
     {
         return !string.IsNullOrWhiteSpace(value)
-            && value.Any(char.IsLetter);
+               && value.Any(char.IsLetter);
     }
 
     private static bool TryParseCoordinate(string? value, out double result)
