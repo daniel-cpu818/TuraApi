@@ -38,7 +38,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddHttpClient<IGeocodingService, GeocodingService>(client =>
 {
     client.BaseAddress = new Uri("https://nominatim.openstreetmap.org/");
-    client.DefaultRequestHeaders.UserAgent.ParseAdd("TuraHogar/1.0, danieljassan233@gmail.com");
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("TuraHogar/1.0");
 });
 var app = builder.Build();
 
